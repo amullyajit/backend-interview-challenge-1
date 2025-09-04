@@ -1,63 +1,58 @@
-import { Router, Request, Response } from 'express';
-import { TaskService } from '../services/taskService';
-import { SyncService } from '../services/syncService';
-import { Database } from '../db/database';
+import { Router } from "express";
+import { taskService } from "../services/taskService";
 
-export function createTaskRouter(db: Database): Router {
-  const router = Router();
-  const taskService = new TaskService(db);
-  const syncService = new SyncService(db, taskService);
 
-  // Get all tasks
-  router.get('/', async (req: Request, res: Response) => {
-    try {
-      const tasks = await taskService.getAllTasks();
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch tasks' });
-    }
-  });
+export const tasksRouter = Router();
 
-  // Get single task
-  router.get('/:id', async (req: Request, res: Response) => {
-    try {
-      const task = await taskService.getTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-      }
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch task' });
-    }
-  });
 
-  // Create task
-  router.post('/', async (req: Request, res: Response) => {
-    // TODO: Implement task creation endpoint
-    // 1. Validate request body
-    // 2. Call taskService.createTask()
-    // 3. Return created task
-    res.status(501).json({ error: 'Not implemented' });
-  });
+// GET /tasks
+tasksRouter.get("/", (_req, res) => {
+res.json({ tasks: taskService.list() });
+});
 
-  // Update task
-  router.put('/:id', async (req: Request, res: Response) => {
-    // TODO: Implement task update endpoint
-    // 1. Validate request body
-    // 2. Call taskService.updateTask()
-    // 3. Handle not found case
-    // 4. Return updated task
-    res.status(501).json({ error: 'Not implemented' });
-  });
 
-  // Delete task
-  router.delete('/:id', async (req: Request, res: Response) => {
-    // TODO: Implement task deletion endpoint
-    // 1. Call taskService.deleteTask()
-    // 2. Handle not found case
-    // 3. Return success response
-    res.status(501).json({ error: 'Not implemented' });
-  });
+// GET /tasks/:id
+tasksRouter.get("/:id", (req, res) => {
+const task = taskService.get(req.params.id);
+if (!task || task.deleted) return res.status(404).json({ error: "not_found" });
+res.json(task);
+});
 
-  return router;
+
+// POST /tasks
+// Client must generate UUID `id` and send ISO `updatedAt` (or server will set now)
+tasksRouter.post("/", (req, res) => {
+try {
+const clientId = req.header("x-client-id") || undefined;
+const created = taskService.create(req.body, clientId);
+res.status(201).json(created);
+} catch (e: any) {
+res.status(400).json({ error: e?.message || "invalid_payload" });
 }
+});
+
+
+// PATCH /tasks/:id
+tasksRouter.patch("/:id", (req, res) => {
+try {
+const clientId = req.header("x-client-id") || undefined;
+const updated = taskService.update(req.params.id, req.body, clientId);
+res.json(updated);
+} catch (e: any) {
+if (String(e?.message).includes("not found")) return res.status(404).json({ error: "not_found" });
+res.status(400).json({ error: e?.message || "invalid_payload" });
+}
+});
+
+
+// DELETE /tasks/:id (soft delete)
+tasksRouter.delete("/:id", (req, res) => {
+try {
+const now = new Date().toISOString();
+const deleted = taskService.softDelete(req.params.id, req.query.updatedAt as string | undefined || now);
+res.json(deleted);
+} catch (e: any) {
+if (String(e?.message).includes("not found")) return res.status(404).json({ error: "not_found" });
+res.status(400).json({ error: e?.message || "invalid_request" });
+}
+});
