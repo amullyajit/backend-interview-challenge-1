@@ -1,50 +1,25 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { Database } from './db/database';
-import { createTaskRouter } from './routes/tasks';
-import { createSyncRouter } from './routes/sync';
-import { errorHandler } from './middleware/errorHandler';
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import { tasksRouter } from "./routes/tasks";
+import { syncRouter } from "./routes/sync";
 
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(morgan("dev"));
 
-// Initialize database
-const db = new Database(process.env.DATABASE_URL || './data/tasks.sqlite3');
 
-// Routes
-app.use('/api/tasks', createTaskRouter(db));
-app.use('/api', createSyncRouter(db));
+app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.use("/tasks", tasksRouter);
+app.use("/sync", syncRouter);
 
-// Error handling
-app.use(errorHandler);
 
-// Start server
-async function start() {
-  try {
-    await db.initialize();
-    console.log('Database initialized');
-    
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
+const PORT = Number(process.env.PORT || 3000);
+if (process.env.NODE_ENV !== "test") {
+app.listen(PORT, () => console.log(`Server listening on :${PORT}`));
 }
 
-start();
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  await db.close();
-  process.exit(0);
-});
+export default app;
