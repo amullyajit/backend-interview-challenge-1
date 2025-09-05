@@ -19,14 +19,24 @@ export const taskService = {
   },
 
   create(payload: Partial<Task>, clientId?: string): Task {
-    return taskStore.create(payload, clientId);
+    const now = new Date().toISOString();
+    const newTask: Task = {
+      id: clientId || crypto.randomUUID(),
+      title: payload.title || "Untitled Task",
+      description: payload.description || "",
+      completed: payload.completed || false,
+      deleted: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return taskStore.create(newTask);
   },
 
-  update(id: string, payload: Partial<Task>, clientId?: string): Task {
-    return taskStore.update(id, payload, clientId);
+  update(id: string, payload: Partial<Task>, clientId?: string): Task | undefined {
+    return taskStore.update(id, { ...payload, updatedAt: new Date().toISOString() });
   },
 
-  softDelete(id: string, updatedAt?: string): void {
-    return taskStore.softDelete(id, updatedAt);
-  }
+  softDelete(id: string): Task | undefined {
+    return taskStore.softDelete(id);
+  },
 };
