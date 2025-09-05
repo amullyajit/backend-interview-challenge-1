@@ -1,5 +1,5 @@
 import { taskStore } from "../db/taskStore";
-import { Task } from "../types/task";   // ✅ consistent import
+import { Task } from "../types/task";
 import { isIsoDate } from "../utils/dateUtils";
 
 export const taskService = {
@@ -26,7 +26,7 @@ export const taskService = {
     return taskStore.update(id, payload, clientId);
   },
 
-  softDelete(id: string, updatedAt?: string) {
+  softDelete(id: string, updatedAt?: string): void {
     return taskStore.softDelete(id, updatedAt);
   }
 };
